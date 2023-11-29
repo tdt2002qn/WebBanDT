@@ -10,12 +10,9 @@ dotenv.config()
 mongoose.set('strictQuery', false);
 
 const app = express()
+const server = require('http').createServer(app);  // Tạo một server HTTP
+const io = require('socket.io')(server);  // Kết nối Socket.io với server
 
-//Socket io
-const http = require('http');
-const server = http.createServer(app);
-const { Server } = require("socket.io");
-const io = new Server(server);
 
 
 const port = process.env.PORT || 3001
@@ -29,7 +26,7 @@ app.use(cookieParser())
 routes(app);
 
 
-
+//Mongoo
 mongoose.connect(`${process.env.MONGO_DB}`)
     .then(() => {
         console.log('Connect Db success!')
@@ -42,6 +39,14 @@ io.on("connection", function (socket) {
     console.log("Co nguoi ket noi len socket", socket.id);
     socket.on("disconnect", function () {
         console.log(socket.id + "Ngat ket noi")
+    });
+
+    // Xử lý các sự kiện Socket.io ở đây
+    socket.on("chat message", function (message) {
+        console.log("Message from client:", message);
+
+        // Gửi lại tin nhắn đến tất cả các clients (hoặc có thể chỉ gửi đến một phòng cụ thể)
+        io.sockets.emit("chat message", message);
     });
 });
 server.listen(port, () => {
