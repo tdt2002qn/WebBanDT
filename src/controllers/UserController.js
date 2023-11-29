@@ -170,7 +170,7 @@ const refreshToken = async (req, res) => {
 
 const logoutUser = async (req, res) => {
     try {
-
+        console.log('Hiiii')
         res.clearCookie('refresh_token')
 
         return res.status(200).json({
