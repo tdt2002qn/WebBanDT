@@ -10,6 +10,7 @@ const cookieParser = require('cookie-parser')
 const Review = require('./models/Comment')
 const { createServer } = require("http");
 const { Server } = require("socket.io");
+const News = require("./models/News");
 
 dotenv.config()
 mongoose.set('strictQuery', false);
@@ -32,7 +33,7 @@ app.use(bodyParser.json())
 app.use(cookieParser())
 routes(app);
 
-
+//========================================================
 //Mongoo
 mongoose.connect(`${process.env.MONGO_DB}`)
     .then(() => {
@@ -41,7 +42,8 @@ mongoose.connect(`${process.env.MONGO_DB}`)
     .catch((err) => {
         console.log(err)
     })
-
+//========================================================
+//Lây lich su danh gia san pham
 const getCommentHistory = async () => {
     try {
         const comments = await Review.find().sort({ createdAt: -1 });
@@ -51,11 +53,27 @@ const getCommentHistory = async () => {
         return [];
     }
 };
+//Lay lich su khuyen mai
+const getNewsHistoryz = async () => {
+    try {
+        const news = await News.find().sort({ createdAt: -1 });
+        return news;
+    } catch (error) {
+        console.error('Lỗi khi lấy lịch sử khuyen mai:', error);
+        return [];
+    }
+};
+//========================================================
 //Socket io
 io.on("connection", async function (socket) {
     // Lấy và gửi lịch sử bình luận khi client kết nối
     const commentHistory = await getCommentHistory(socket.productId);
     socket.emit('commentHistory', commentHistory);
+
+    //Lấy và gửi lịch sử news khi client kết nối
+    const updatedNewsHistory = await getNewsHistoryz();
+    io.sockets.emit('newsHistory', updatedNewsHistory);
+    console.log('newsHistory', updatedNewsHistory)
     // JOIN ROOM
     socket.on('joinRoom', (productId) => {
         socket.productId = productId;
@@ -67,6 +85,7 @@ io.on("connection", async function (socket) {
     socket.on("disconnect", function () {
         console.log(socket.id + "Ngat ket noi")
     });
+    //========================================================    
     // LOGIN
     socket.on("login", function (data) {
         // Xử lý thông tin đăng nhập ở đây, ví dụ kiểm tra thông tin đăng nhập
@@ -78,6 +97,7 @@ io.on("connection", async function (socket) {
         // Gửi thông báo đăng nhập thành công về cho client
         socket.emit("login_success", { message: "Login successful" });
     });
+    //========================================================   
     //LOGOUT
     socket.on("logout", function (data) {
         // Xử lý thông tin xuất ở đây, 
@@ -89,6 +109,7 @@ io.on("connection", async function (socket) {
         // Gửi thông báo đăng nhập thành công về cho client
         socket.emit("logout_success", { message: "Logout successful" });
     });
+    //========================================================
     // CHAT
     socket.on("chat message", function (message) {
         console.log("Message from client:", message);
@@ -96,6 +117,7 @@ io.on("connection", async function (socket) {
         io.sockets.emit("chat message", message);
 
     });
+    //=====================================================
     // COMMENT
     socket.on('addReview', async (data) => {
         console.log("Comment from client:", data);
@@ -116,9 +138,24 @@ io.on("connection", async function (socket) {
 
         io.to(productId).emit('commentHistory', updatedCommentHistory);
         // Gửi đánh giá mới đến tất cả các client
-        //io.emit('newReview', newReview);
+        //  io.emit('newReview', newReview);
         //console.log('newReview', newReview)
     });
+
+    //========================================================
+    //KHUYEN MAI
+    socket.on("postNews", async (data) => {
+        console.log("Received news from client:", data);
+        const { title, content } = data;
+        const newNews = new News({
+            title,
+            content,
+        });
+        await newNews.save();
+        io.emit('newNews', newNews);
+
+    });
+    //=========================================================
 });
 httpServer.listen(port, () => {
     console.log('Server is running in port: ', + port)
