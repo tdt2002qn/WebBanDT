@@ -1,3 +1,4 @@
+
 const express = require("express");
 const dotenv = require('dotenv');
 const mongoose = require("mongoose");
@@ -6,7 +7,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser')
 const cookieParser = require('cookie-parser')
 //socket
-
+const Review = require('./models/Comment')
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 
@@ -40,17 +41,32 @@ mongoose.connect(`${process.env.MONGO_DB}`)
     .catch((err) => {
         console.log(err)
     })
-//Socket io
-io.on("connection", function (socket) {
 
+const getCommentHistory = async () => {
+    try {
+        const comments = await Review.find().sort({ createdAt: -1 });
+        return comments;
+    } catch (error) {
+        console.error('Lỗi khi lấy lịch sử bình luận:', error);
+        return [];
+    }
+};
+//Socket io
+io.on("connection", async function (socket) {
+    // Lấy và gửi lịch sử bình luận khi client kết nối
+    const commentHistory = await getCommentHistory(socket.productId);
+    socket.emit('commentHistory', commentHistory);
+    // JOIN ROOM
+    socket.on('joinRoom', (productId) => {
+        socket.productId = productId;
+        socket.join(productId);
+    });
     // CONNECT 
     console.log("Co nguoi ket noi len socket", socket.id);
-
     //DISCONNECT
     socket.on("disconnect", function () {
         console.log(socket.id + "Ngat ket noi")
     });
-
     // LOGIN
     socket.on("login", function (data) {
         // Xử lý thông tin đăng nhập ở đây, ví dụ kiểm tra thông tin đăng nhập
@@ -79,6 +95,29 @@ io.on("connection", function (socket) {
         // Gửi lại tin nhắn đến tất cả các clients 
         io.sockets.emit("chat message", message);
 
+    });
+    // COMMENT
+    socket.on('addReview', async (data) => {
+        console.log("Comment from client:", data);
+        // Lưu vào MongoDB bằng cách sử dụng model
+        const { content, rating, user, productId } = data;
+
+        // Lưu đánh giá vào MongoDB bằng cách sử dụng model
+        const newReview = new Review({
+            content: content.content,
+
+            rating: content.rating,
+            user,
+            productId,
+        });
+
+        await newReview.save();
+        const updatedCommentHistory = await getCommentHistory();
+
+        io.to(productId).emit('commentHistory', updatedCommentHistory);
+        // Gửi đánh giá mới đến tất cả các client
+        //io.emit('newReview', newReview);
+        //console.log('newReview', newReview)
     });
 });
 httpServer.listen(port, () => {
