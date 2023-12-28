@@ -138,7 +138,7 @@ io.on("connection", async function (socket) {
         //  const { email } = data;
 
         // Nếu đăng xuất thành công, có thể thực hiện các hành động cần thiết
-        console.log(` ${data} logged out successfully`);
+        console.log('user logged out successfully');
 
         // Gửi thông báo đăng nhập thành công về cho client
         socket.emit("logout_success", { message: "Logout successful" });
