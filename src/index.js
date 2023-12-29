@@ -39,7 +39,7 @@ routes(app);
 
 //========================================================
 //Mongoo
-mongoose.connect(`${process.env.MONGO_DB}`)
+mongoose.connect(`mongodb+srv://gigidream9pro:${process.env.MONGO_DB}@cluster0.kvzyoxm.mongodb.net/?retryWrites=true&w=majority`)
     .then(() => {
         console.log('Connect Db success!')
     })
